@@ -1,0 +1,33 @@
+# dependencies
+node_modules/
+.pnpm-store/
+
+# build output
+release/
+dist/
+out/
+*.asar
+
+# runtime / local state
+*.log
+state.json
+_probe/
+_pubpreview/
+_tools/
+src/mock-data.js
+src/mock-wallpaper.jpg
+src/test-*.html
+*.bak
+*.tmp
+
+# OS / editor
+Thumbs.db
+desktop.ini
+.DS_Store
+.vscode/
+.idea/
+
+# local build helpers
+package.log
+install.log
+playwright-install.log

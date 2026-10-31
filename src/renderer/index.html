@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; font-src 'self' data:;">
+<meta name="color-scheme" content="dark">
+<title>浮光抽屉</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div id="stage">
+  <div id="handle" class="handle" aria-hidden="true">
+    <span class="handle-lamp"></span>
+    <span class="handle-grip"><i></i><i></i><i></i></span>
+    <span class="handle-tail"></span>
+  </div>
+
+  <div id="hint" class="hint">
+    <span class="hint-dot"></span>
+    <span>移入右侧 · 唤出抽屉</span>
+    <span id="hintCount" class="hint-count">0</span>
+  </div>
+
+  <section id="drawer" class="drawer" role="dialog" aria-modal="false" aria-label="浮光抽屉" aria-hidden="true">
+    <div class="glass">
+      <div id="backdrop" class="backdrop"></div>
+      <div class="glass-tint"></div>
+      <div class="noise"></div>
+      <div class="sheen"></div>
+      <div class="aurora aurora-a"></div>
+      <div class="aurora aurora-b"></div>
+      <div class="edge"></div>
+
+      <div class="content">
+        <header class="topbar">
+          <div class="brand">
+            <div class="logo" aria-hidden="true"><span></span></div>
+            <div class="titles">
+              <div class="eyebrow">FUGUANG · DESKTOP DRAWER</div>
+              <h1>浮光抽屉</h1>
+              <div class="subtitle">
+                <span class="live-dot"></span>
+                <span id="subtitleText">正在整理桌面…</span>
+              </div>
+            </div>
+          </div>
+          <button id="restoreBtn" class="restore-btn" type="button" title="把所有图标放回桌面原来的位置并退出">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v5h5M20 15V10h-5M5.6 13.4A7 7 0 0 0 18.4 16M18.4 10.6A7 7 0 0 0 5.6 8" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <span>归还桌面</span>
+          </button>
+        </header>
+
+        <div class="search-row">
+          <label class="search">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.2" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="m16 16 4 4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+            <input id="searchInput" type="text" placeholder="搜索桌面图标…" autocomplete="off" spellcheck="false" aria-label="搜索桌面图标">
+            <kbd>/</kbd>
+          </label>
+          <button id="refreshBtn" class="icon-btn" type="button" title="重新扫描桌面">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 5.7M20 5v6h-6" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+        </div>
+
+        <nav id="chips" class="chips" aria-label="图标分类"></nav>
+
+        <div class="scroll-wrap">
+          <div id="scroll" class="scroll">
+            <div id="groups" class="groups"></div>
+            <div id="empty" class="empty" hidden>
+              <div class="empty-glyph">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="m15.5 15.5 4 4" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+              </div>
+              <p id="emptyTitle">没有找到图标</p>
+              <span id="emptyHint">换一个关键词，或选择其他分类</span>
+            </div>
+            <div id="skeleton" class="skeleton" aria-hidden="true">
+              <div class="sk-item"><i></i><b></b></div>
+              <div class="sk-item"><i></i><b></b></div>
+              <div class="sk-item"><i></i><b></b></div>
+              <div class="sk-item"><i></i><b></b></div>
+              <div class="sk-item"><i></i><b></b></div>
+              <div class="sk-item"><i></i><b></b></div>
+              <div class="sk-item"><i></i><b></b></div>
+              <div class="sk-item"><i></i><b></b></div>
+            </div>
+          </div>
+          <div id="scrollRail" class="scroll-rail" aria-hidden="true"><span id="scrollThumb"></span></div>
+        </div>
+
+        <footer class="footer">
+          <button id="expandBtn" class="expand-btn" type="button" aria-expanded="false">
+            <span id="expandLabel">展开全部图标</span>
+            <svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+          <div class="footer-hint">
+            <span id="clockText">--:--</span>
+            <span id="footerHint">滚轮浏览</span>
+          </div>
+        </footer>
+      </div>
+
+      <div id="restoreOverlay" class="restore-overlay" aria-hidden="true">
+        <div class="restore-card">
+          <span class="spinner"></span>
+          <strong>正在归还图标</strong>
+          <p>回到桌面原来的位置…</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+</div>
+<script src="renderer.js"></script>
+</body>
+</html>
