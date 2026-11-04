@@ -5,8 +5,19 @@
   "private": true,
   "description": "Fuguang Drawer - a glass drawer that organizes Windows desktop icons",
   "main": "src/main.js",
-  "author": "Fuguang Drawer contributors",
+  "author": {
+    "name": "Luckwolfwangwangzbs",
+    "url": "https://github.com/Luckwolfwangwang"
+  },
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Luckwolfwangwang/fuguang-drawer.git"
+  },
+  "homepage": "https://github.com/Luckwolfwangwang/fuguang-drawer#readme",
+  "bugs": {
+    "url": "https://github.com/Luckwolfwangwang/fuguang-drawer/issues"
+  },
   "keywords": [
     "windows",
     "desktop",

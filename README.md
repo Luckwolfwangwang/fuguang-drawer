@@ -1,5 +1,8 @@
 # 浮光抽屉 · Fuguang Drawer
 
+[![GitHub stars](https://img.shields.io/github/stars/Luckwolfwangwang/fuguang-drawer?style=social)](https://github.com/Luckwolfwangwang/fuguang-drawer/stargazers)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
 一个 Windows 桌面图标收纳器：把桌面图标收进屏幕右侧的玻璃抽屉，桌面保持干净；鼠标移到右侧玻璃小条上，抽屉才会出现，不用时一键归还。
 
 > Screenshots use demo icons and names. The real app uses native Windows shell icons.
@@ -65,7 +68,7 @@
 
 ### 直接使用
 
-从 Releases 下载便携版压缩包，解压后双击 `FuguangDrawer.exe`；建议同时创建桌面快捷方式。
+从 [Releases](https://github.com/Luckwolfwangwang/fuguang-drawer/releases) 下载便携版压缩包，解压后双击 `FuguangDrawer.exe`；建议同时创建桌面快捷方式。
 
 > 便携包必须保留同目录的 `resources` 文件夹，不能只复制 exe。
 
@@ -74,7 +77,7 @@
 要求：Windows 11、Node.js 20+。
 
 ```powershell
-git clone https://github.com/<your-name>/fuguang-drawer.git
+git clone https://github.com/Luckwolfwangwang/fuguang-drawer.git
 cd fuguang-drawer
 npm install
 npm start
@@ -132,6 +135,12 @@ tools/make-icon.py        生成应用图标
 - 全屏游戏/全屏视频可能覆盖置顶窗口，这是 Windows 全屏优化行为
 - 首次启动需要允许 PowerShell 执行脚本（程序使用 `-ExecutionPolicy Bypass`，不会修改系统策略）
 - 未签名 exe 可能触发 SmartScreen：点“更多信息” → “仍要运行”
+
+## 作者
+
+**Luckwolfwangwangzbs** · [GitHub @Luckwolfwangwang](https://github.com/Luckwolfwangwang)
+
+这个项目覆盖了 Windows Shell 集成、系统图标提取、Electron 透明窗口、桌面图标原位还原和异常退出保护。如果它对你的桌面有帮助，欢迎点一个 ⭐ Star，这是对我继续维护最大的鼓励。
 
 ## License
 
