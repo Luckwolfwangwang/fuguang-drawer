@@ -1129,6 +1129,16 @@ function setupIpc() {
     }
     try {
       await fsp.rename(item.path, target);
+      const oldId = item.id;
+      const newId = target;
+      for (const key of ['favorites', 'favoriteExcluded', 'aiTools', 'aiExcluded', 'launchCounts']) {
+        const map = state[key];
+        if (map && Object.prototype.hasOwnProperty.call(map, oldId)) {
+          map[newId] = map[oldId];
+          delete map[oldId];
+        }
+      }
+      saveState();
       await scanDesktop();
       sendData();
       return { ok: true, name };
