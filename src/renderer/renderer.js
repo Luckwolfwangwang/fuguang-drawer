@@ -7,6 +7,12 @@
   const body = document.body;
   const drawer = document.getElementById('drawer');
   const backdrop = document.getElementById('backdrop');
+  const renameOverlay = document.getElementById('renameOverlay');
+  const renameCurrent = document.getElementById('renameCurrent');
+  const renameInput = document.getElementById('renameInput');
+  const renameError = document.getElementById('renameError');
+  const renameOk = document.getElementById('renameOk');
+  const renameCancel = document.getElementById('renameCancel');
   const handle = document.getElementById('handle');
   const hint = document.getElementById('hint');
   const hintCount = document.getElementById('hintCount');
@@ -50,6 +56,8 @@
   let loaded = false;
   let refreshing = false;
   let restoreBusy = false;
+  let renameItem = null;
+  let renameBusy = false;
 
   let toastTimer = null;
   let hintTimer = null;
@@ -83,6 +91,9 @@
     });
     api.onRestoring(() => {
       body.classList.add('restoring');
+    });
+    api.onRename((payload) => {
+      openRename(payload);
     });
     api.onError((payload) => {
       body.classList.remove('restoring');
@@ -408,6 +419,7 @@
   }
 
   function handleClose() {
+    if (renameItem) closeRename();
     body.classList.remove('open', 'expanded');
     body.classList.remove('restoring');
     drawer.setAttribute('aria-hidden', 'true');
@@ -425,6 +437,66 @@
     render();
     scrollEl.scrollTop = 0;
     restoreBusy = false;
+  }
+
+  function openRename(payload) {
+    if (!payload || !payload.id) return;
+    renameItem = payload;
+    renameBusy = false;
+    renameOk.disabled = false;
+    renameCurrent.textContent = `当前：${payload.fullName || ''}`;
+    renameInput.value = payload.fullName || '';
+    renameError.textContent = '';
+    renameOverlay.hidden = false;
+    body.classList.add('renaming');
+    api.renameState(true);
+    requestAnimationFrame(() => {
+      const value = renameInput.value;
+      const dot = value.lastIndexOf('.');
+      const end = dot > 0 ? dot : value.length;
+      renameInput.focus();
+      renameInput.setSelectionRange(0, end);
+    });
+  }
+
+  function closeRename() {
+    renameOverlay.hidden = true;
+    body.classList.remove('renaming');
+    renameItem = null;
+    renameBusy = false;
+    renameOk.disabled = false;
+    renameInput.blur();
+    api.renameState(false);
+  }
+
+  async function submitRename() {
+    if (!renameItem || renameBusy) return;
+    const name = renameInput.value.trim();
+    if (!name) {
+      renameError.textContent = '名称不能为空';
+      renameInput.focus();
+      return;
+    }
+    renameBusy = true;
+    renameOk.disabled = true;
+    renameError.textContent = '';
+    try {
+      const result = await api.rename(renameItem.id, name);
+      if (!result || !result.ok) {
+        renameError.textContent = (result && result.error) || '重命名失败';
+        renameBusy = false;
+        renameOk.disabled = false;
+        renameInput.focus();
+        return;
+      }
+      const oldName = renameItem.fullName;
+      closeRename();
+      showToast(`已重命名：${oldName} → ${name}`, false, 2600);
+    } catch (err) {
+      renameError.textContent = '重命名失败，请重试';
+      renameBusy = false;
+      renameOk.disabled = false;
+    }
   }
 
   function handleState(payload) {
@@ -449,6 +521,22 @@
   // Events
   // -------------------------------------------------------------------
   function bindEvents() {
+    renameOk.addEventListener('click', submitRename);
+    renameCancel.addEventListener('click', closeRename);
+    renameInput.addEventListener('keydown', (event) => {
+      event.stopPropagation();
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        submitRename();
+      } else if (event.key === 'Escape') {
+        event.preventDefault();
+        closeRename();
+      }
+    });
+    renameOverlay.addEventListener('mousedown', (event) => {
+      if (event.target === renameOverlay) closeRename();
+    });
+
     expandBtn.addEventListener('click', () => {
       if (expanded) {
         setExpanded(false);
@@ -534,6 +622,13 @@
 
     document.addEventListener('keydown', (event) => {
       if (!body.classList.contains('open')) return;
+      if (renameItem) {
+        if (event.key === 'Escape') {
+          event.preventDefault();
+          closeRename();
+        }
+        return;
+      }
       if (event.key === 'Escape') {
         event.preventDefault();
         if (searchInput.value) {
@@ -571,6 +666,7 @@
 
     drawer.addEventListener('mouseleave', () => {
       if (body.classList.contains('restoring')) return;
+      if (renameItem) return;
       if (document.activeElement === searchInput) return;
       if (leaveTimer) clearTimeout(leaveTimer);
       leaveTimer = setTimeout(() => {

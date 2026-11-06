@@ -99,6 +99,20 @@
         </footer>
       </div>
 
+      <div id="renameOverlay" class="rename-overlay" hidden>
+        <div class="rename-card">
+          <div class="rename-kicker">RENAME</div>
+          <h3>重命名</h3>
+          <div id="renameCurrent" class="rename-current"></div>
+          <input id="renameInput" type="text" autocomplete="off" spellcheck="false" aria-label="新名称">
+          <div id="renameError" class="rename-error"></div>
+          <div class="rename-actions">
+            <button id="renameCancel" class="rename-btn ghost" type="button">取消</button>
+            <button id="renameOk" class="rename-btn primary" type="button">确定</button>
+          </div>
+        </div>
+      </div>
+
       <div id="restoreOverlay" class="restore-overlay" aria-hidden="true">
         <div class="restore-card">
           <span class="spinner"></span>

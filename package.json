@@ -1,7 +1,7 @@
 {
   "name": "fuguang-drawer",
   "productName": "浮光抽屉",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "private": true,
   "description": "Fuguang Drawer - a glass drawer that organizes Windows desktop icons",
   "main": "src/main.js",
@@ -31,7 +31,7 @@
   },
   "scripts": {
     "start": "electron .",
-    "package": "electron-packager . \"浮光抽屉\" --platform=win32 --arch=x64 --out=release --overwrite --icon=assets/icon.ico --executable-name=FuguangDrawer --app-version=1.0.0 --ignore=\"^/tools($|/)\" --ignore=\"^/docs($|/)\" --ignore=\"^/README\\.md$\" --ignore=\"^/_probe($|/)\" --ignore=\"^/release($|/)\" --ignore=\"^/src/(mock-data\\.js|mock-wallpaper\\.jpg|test.*\\.html)$\" --ignore=\"^/(install|playwright-install|package)\\.log$\"",
+    "package": "electron-packager . \"浮光抽屉\" --platform=win32 --arch=x64 --out=release --overwrite --icon=assets/icon.ico --executable-name=FuguangDrawer --app-version=1.0.1 --ignore=\"^/tools($|/)\" --ignore=\"^/docs($|/)\" --ignore=\"^/README\\.md$\" --ignore=\"^/_probe($|/)\" --ignore=\"^/release($|/)\" --ignore=\"^/src/(mock-data\\.js|mock-wallpaper\\.jpg|test.*\\.html)$\" --ignore=\"^/(install|playwright-install|package)\\.log$\"",
     "icon": "python tools/make-icon.py"
   },
   "devDependencies": {

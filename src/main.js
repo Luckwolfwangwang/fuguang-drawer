@@ -100,6 +100,9 @@ let lastBackdropAt = 0;
 let backdropBusy = false;
 let healTimers = [];
 let rendererRecoveries = 0;
+let contextMenuOpen = false;
+let shellMenuOpen = false;
+let renameOpen = false;
 
 // ---------------------------------------------------------------------------
 // Logging
@@ -853,7 +856,7 @@ function openDrawer(withExpanded = false) {
 
 let closeTimer = null;
 function scheduleClose(delay = 650) {
-  if (collapsed || restoring) return;
+  if (collapsed || restoring || contextMenuOpen || shellMenuOpen || renameOpen) return;
   if (closeTimer) clearTimeout(closeTimer);
   closeTimer = setTimeout(() => {
     closeTimer = null;
@@ -869,7 +872,7 @@ function cancelScheduledClose() {
 }
 
 function closeDrawer() {
-  if (collapsed || !win || win.isDestroyed()) return;
+  if (collapsed || contextMenuOpen || shellMenuOpen || renameOpen || !win || win.isDestroyed()) return;
   collapsed = true;
   expanded = false;
   outsideSince = 0;
@@ -886,6 +889,7 @@ function startHoverWatcher() {
   if (pollTimer) clearInterval(pollTimer);
   pollTimer = setInterval(() => {
     if (!win || win.isDestroyed() || quitting || restoring) return;
+    if (contextMenuOpen || shellMenuOpen || renameOpen) return;
     if (!hoverEnabled) return;
     const pt = screen.getCursorScreenPoint();
     const b = win.getBounds();
@@ -1031,6 +1035,37 @@ async function launchAndRecord(item) {
   return result;
 }
 
+function showShellMenu(item) {
+  if (!item || item.special || !item.path || !fs.existsSync(item.path)) return;
+  if (shellMenuOpen || renameOpen) return;
+  const helper = path.join(ROOT, 'scripts', 'shell-menu.ps1');
+  const powershell = path.join(process.env.SystemRoot || 'C:\\Windows',
+    'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe');
+  if (!fs.existsSync(helper)) {
+    log('shell menu helper missing');
+    return;
+  }
+  shellMenuOpen = true;
+  let child;
+  try {
+    child = spawn(powershell, [
+      '-NoProfile', '-STA', '-WindowStyle', 'Hidden', '-ExecutionPolicy', 'Bypass',
+      '-File', helper, '-Path', item.path,
+    ], { windowsHide: true, stdio: 'ignore' });
+  } catch (err) {
+    shellMenuOpen = false;
+    log('shell menu failed:', err.message);
+    return;
+  }
+  const done = () => { shellMenuOpen = false; };
+  child.on('exit', done);
+  child.on('error', (err) => {
+    done();
+    log('shell menu error:', err.message);
+  });
+  log('shell menu opened for', item.fullName);
+}
+
 function setupIpc() {
   ipcMain.on('renderer:ready', async () => {
     try {
@@ -1070,6 +1105,44 @@ function setupIpc() {
     return toggleCurated(item, kind) || { ok: false, error: 'toggle failed' };
   });
 
+  ipcMain.handle('icon:rename', async (_event, payload) => {
+    const item = itemById(payload && payload.id);
+    if (!item || item.special) return { ok: false, error: '这个图标不支持重命名' };
+    const name = String((payload && payload.name) || '').trim();
+    if (!name || name === '.' || name === '..') {
+      return { ok: false, error: '名称不能为空' };
+    }
+    if (name.length > 255) return { ok: false, error: '名称过长' };
+    if (/[\\/:*?"<>|]/.test(name) || /[\x00-\x1f]/.test(name)) {
+      return { ok: false, error: '名称包含 Windows 不允许的字符' };
+    }
+    if (/[. ]$/.test(name)) {
+      return { ok: false, error: '名称不能以空格或点结尾' };
+    }
+    const target = path.join(path.dirname(item.path), name);
+    if (target === item.path) return { ok: true, name };
+    if (target.toLowerCase() === item.path.toLowerCase()) {
+      return { ok: true, name };
+    }
+    if (fs.existsSync(target)) {
+      return { ok: false, error: '同一位置已经存在同名文件' };
+    }
+    try {
+      await fsp.rename(item.path, target);
+      await scanDesktop();
+      sendData();
+      return { ok: true, name };
+    } catch (err) {
+      log('rename failed:', err.message);
+      return { ok: false, error: err.code === 'EACCES' ? '没有权限重命名这个文件' : err.message };
+    }
+  });
+
+  ipcMain.on('drawer:rename-state', (_event, value) => {
+    renameOpen = !!value;
+    if (!renameOpen) cancelScheduledClose();
+  });
+
   ipcMain.on('icon:context', (_event, id) => {
     const item = itemById(id);
     if (!item) return;
@@ -1077,11 +1150,26 @@ function setupIpc() {
       {
         label: '打开',
         click: () => {
+          contextMenuOpen = false;
           launchAndRecord(item).then((result) => {
             if (result.ok) scheduleClose(180);
           });
         },
       },
+      {
+        label: '重命名…',
+        enabled: !item.special,
+        click: () => {
+          renameOpen = true;
+          win.webContents.send('drawer:rename', { id: item.id, fullName: item.fullName });
+        },
+      },
+      {
+        label: '更多 Windows 功能…',
+        enabled: !item.special,
+        click: () => showShellMenu(item),
+      },
+      { type: 'separator' },
       {
         label: item.favorite ? '从常用中移除' : '加入常用',
         click: () => toggleCurated(item, 'favorite'),
@@ -1108,7 +1196,13 @@ function setupIpc() {
         click: () => clipboard.writeText(item.fullName),
       },
     ];
-    Menu.buildFromTemplate(template).popup({ window: win });
+    contextMenuOpen = true;
+    Menu.buildFromTemplate(template).popup({
+      window: win,
+      callback: () => {
+        contextMenuOpen = false;
+      },
+    });
   });
 
   ipcMain.on('drawer:expanded', (_event, value) => {
