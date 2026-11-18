@@ -2,13 +2,13 @@
 
 const {
   app, BrowserWindow, ipcMain, screen, shell, Menu, Tray,
-  nativeImage, clipboard, desktopCapturer,
+  nativeImage, clipboard, desktopCapturer, globalShortcut,
 } = require('electron');
 const fs = require('fs');
 const fsp = require('fs/promises');
 const path = require('path');
 const os = require('os');
-const { spawn } = require('child_process');
+const { spawn, execFile } = require('child_process');
 const { resolveIconSource } = require('./icon-utils');
 const { extractIcons } = require('./icon-extract');
 
@@ -28,6 +28,8 @@ const RENDERER_PATH = path.join(__dirname, 'renderer', 'index.html');
 const HELPER_PATH = path.join(ROOT, 'scripts', 'desktop-icons.ps1');
 const ICON_HELPER_PATH = path.join(ROOT, 'scripts', 'extract-icons.ps1');
 const ICON_DLL_PATH = path.join(ROOT, 'scripts', 'IconExtractor.dll');
+const DESKTOP_CHECK_PATH = path.join(ROOT, 'scripts', 'DesktopCheck.exe');
+const EDGE_DWELL_MS = 320;
 const GUARD_VBS_PATH = path.join(ROOT, 'scripts', 'restore-at-login.vbs');
 const REG_EXE = path.join(process.env.SystemRoot || 'C:\\Windows', 'System32', 'reg.exe');
 const RUNONCE_KEY = 'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\RunOnce';
@@ -103,6 +105,10 @@ let rendererRecoveries = 0;
 let contextMenuOpen = false;
 let shellMenuOpen = false;
 let renameOpen = false;
+let edgeSince = 0;
+let desktopCheckBusy = false;
+let lastDesktopCheck = 0;
+let lastDesktopActive = false;
 
 // ---------------------------------------------------------------------------
 // Logging
@@ -137,6 +143,7 @@ function loadState() {
     favoriteExcluded: {},
     aiTools: {},
     aiExcluded: {},
+    desktopOnlyHover: true,
   };
   try {
     return { ...defaults, ...JSON.parse(fs.readFileSync(stateFile, 'utf8')) };
@@ -885,6 +892,17 @@ function closeDrawer() {
   log('close drawer');
 }
 
+function checkDesktopActive(callback) {
+  if (desktopCheckBusy) return;
+  desktopCheckBusy = true;
+  execFile(DESKTOP_CHECK_PATH, [], { windowsHide: true, timeout: 900 }, (err) => {
+    desktopCheckBusy = false;
+    lastDesktopCheck = Date.now();
+    lastDesktopActive = !err;
+    callback(lastDesktopActive);
+  });
+}
+
 function startHoverWatcher() {
   if (pollTimer) clearInterval(pollTimer);
   pollTimer = setInterval(() => {
@@ -898,9 +916,35 @@ function startHoverWatcher() {
       const inEdge = pt.x >= b.x + b.width - 24 && pt.x <= b.x + b.width + 2;
       const center = b.y + b.height / 2;
       const inY = Math.abs(pt.y - center) <= 145;
-      if (inEdge && inY) {
-        openDrawer(false);
+      if (!inEdge || !inY) {
+        edgeSince = 0;
+        lastDesktopCheck = 0;
+        lastDesktopActive = false;
+        return;
       }
+      if (!edgeSince) edgeSince = Date.now();
+      if (Date.now() - edgeSince < EDGE_DWELL_MS) return;
+
+      if (!state || state.desktopOnlyHover === false) {
+        openDrawer(false);
+        return;
+      }
+
+      if (desktopCheckBusy) return;
+      const now = Date.now();
+      if (now - lastDesktopCheck < 700) {
+        if (lastDesktopActive) openDrawer(false);
+        return;
+      }
+
+      checkDesktopActive((active) => {
+        if (!active || !win || win.isDestroyed() || !collapsed || quitting || restoring) return;
+        const p = screen.getCursorScreenPoint();
+        const bb = win.getBounds();
+        const stillInEdge = p.x >= bb.x + bb.width - 24 && p.x <= bb.x + bb.width + 2;
+        const stillInY = Math.abs(p.y - (bb.y + bb.height / 2)) <= 145;
+        if (stillInEdge && stillInY) openDrawer(false);
+      });
     } else if (!win.isFocused()) {
       const inside = pt.x >= b.x - 4 && pt.x <= b.x + b.width + 4
         && pt.y >= b.y - 4 && pt.y <= b.y + b.height + 4;
@@ -922,7 +966,7 @@ function setupTray() {
     tray = new Tray(nativeImage.createFromPath(ICON_PATH));
     tray.setToolTip(`${APP_TITLE} · 桌面图标收纳`);
     const menu = Menu.buildFromTemplate([
-      { label: '打开浮光抽屉', click: () => openDrawer(true) },
+      { label: '打开浮光抽屉（Ctrl+Alt+D）', click: () => openDrawer(true) },
       { label: '修复显示（重建玻璃条）', click: () => repairWindow() },
       { label: '重新扫描桌面图标', click: () => { refreshData().catch(() => {}); } },
       {
@@ -930,6 +974,14 @@ function setupTray() {
         type: 'checkbox',
         checked: true,
         click: (item) => { hoverEnabled = item.checked; },
+      },
+      {
+        label: '悬停仅在桌面生效',
+        type: 'checkbox',
+        checked: !state || state.desktopOnlyHover !== false,
+        click: (item) => {
+          saveState({ desktopOnlyHover: item.checked });
+        },
       },
       { type: 'separator' },
       { label: '归还桌面图标并退出', click: () => quitWithRestore() },
@@ -939,6 +991,17 @@ function setupTray() {
     tray.on('double-click', () => openDrawer(true));
   } catch (err) {
     log('tray setup failed:', err.message);
+  }
+}
+
+function registerGlobalShortcuts() {
+  try {
+    const ok = globalShortcut.register('CommandOrControl+Alt+D', () => {
+      openDrawer(true);
+    });
+    if (!ok) log('global shortcut Ctrl+Alt+D is already in use');
+  } catch (err) {
+    log('global shortcut registration failed:', err.message);
   }
 }
 
@@ -1292,6 +1355,7 @@ if (!gotLock) {
     createWindow();
     setupIpc();
     setupTray();
+    registerGlobalShortcuts();
     startHoverWatcher();
     screen.on('display-metrics-changed', () => applyLayout());
     screen.on('display-added', () => applyLayout());
@@ -1354,6 +1418,7 @@ app.on('will-quit', () => {
   pollTimer = null;
   for (const timer of healTimers) clearTimeout(timer);
   healTimers = [];
+  try { globalShortcut.unregisterAll(); } catch { /* ignore */ }
   if (tray) {
     try { tray.destroy(); } catch { /* ignore */ }
     tray = null;
